@@ -1,2 +1,2 @@
-# ddut-research-rag-app
-Streamlit research app for Darjeeling, Kalimpong, Jalpaiguri, and Alipurduar
+# North Bengal Research App
+A simple Streamlit app for researching Darjeeling, Kalimpong, Jalpaiguri, and Alipurduar.
