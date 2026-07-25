@@ -73,7 +73,7 @@ with left:
             "Socio-economics",
             "Land Issues",
             "Agitations and Movements",
-            "Political and Social Problems"
+            "Political and Social Problems",
             "Political and Current Events",
         ],
         default=[
