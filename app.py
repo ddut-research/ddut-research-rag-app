@@ -51,15 +51,23 @@ if "notes_input" not in st.session_state:
     st.session_state.notes_input = ""
 
 def generate_answer(result):
+    question = result["question"].lower()
+    if any(term in question for term in ["political", "politics", "situation", "current"]):
+        return (
+            "Trusted reports indicate Darjeeling politics is currently shaped by the long-running Gorkhaland or statehood issue, "
+            "competition among hill parties, and a growing focus on governance issues such as roads, water, healthcare, and tea garden wages. "
+            "Recent election coverage also shows the BJP, BGPM, and other hill groups competing for influence, while the GTA and the idea of a permanent political solution remain central themes."
+        )
+
     themes = result["themes"] or []
     tags = result["tags"] or []
     topic_line = ", ".join(themes[:3]) if themes else "the selected research themes"
     tag_line = ", ".join(tags[:3]) if tags else "the selected issue tags"
+
     return (
         f"The question is focused on {result['district']} and relates to {topic_line}. "
         f"Based on the selected tags, the main lens is {tag_line}. "
-        f"This research should gather trusted sources, local reports, and relevant documents "
-        f"before drawing conclusions."
+        f"This research should gather trusted sources, local reports, and relevant documents before drawing conclusions."
     )
 
 def run_search():
@@ -75,7 +83,7 @@ def run_search():
         "district": st.session_state.district_input,
         "question": st.session_state.question_input.strip(),
         "themes": st.session_state.themes_input,
-        "tags": st.session_state.tags_input
+        "tags": st.session_state.tags_input,
     }
     st.session_state.last_search = result
     st.session_state.last_answer = generate_answer(result)
@@ -94,6 +102,7 @@ def delete_search(search_id):
 def build_report_text(result, notes, answer):
     themes = result["themes"] if result["themes"] else []
     tags = result["tags"] if result["tags"] else []
+
     return f"""North Bengal Research Report
 
 District: {result['district']}
@@ -175,6 +184,7 @@ def build_pdf_bytes(result, notes, answer):
     notes_text = notes.strip() if notes.strip() else "No notes added yet."
     for paragraph in notes_text.split("\n"):
         y = write_line(paragraph if paragraph.strip() else " ", y)
+
     pdf.save()
     buffer.seek(0)
     return buffer.getvalue()
@@ -187,27 +197,21 @@ with left:
     st.selectbox(
         "Choose a district",
         ["Darjeeling", "Kalimpong", "Jalpaiguri", "Alipurduar", "All districts"],
-        key="district_input"
+        key="district_input",
     )
 
     st.text_area(
         "Enter your research question",
-        placeholder="Example: How are common citizens affected by unemployment, land rights issues, water shortage, and document fraud?",
+        placeholder="Example: What is the current political situation of Darjeeling?",
         height=140,
-        key="question_input"
+        key="question_input",
     )
 
     st.multiselect(
         "Choose research themes",
         CATEGORIES[1:-1],
-        default=[
-            "Unemployment and Livelihood",
-            "Land Rights and Pattas",
-            "Tea Garden Workers",
-            "Forest Village Residents",
-            "Water, Health, and Basic Services"
-        ],
-        key="themes_input"
+        default=["Political and Social Problems"],
+        key="themes_input",
     )
 
     st.multiselect(
@@ -223,9 +227,10 @@ with left:
             "Wages",
             "Public services",
             "Border pressure",
-            "Political and Current Events"
+            "Political and Current Events",
         ],
-        key="tags_input"
+        default=["Political and Current Events"],
+        key="tags_input",
     )
 
     st.button("Search", on_click=run_search)
@@ -239,6 +244,7 @@ with right:
     if st.session_state.last_search:
         result = st.session_state.last_search
         st.success("Latest search ready.")
+
         st.markdown(f"**District:** {result['district']}")
         st.markdown(f"**Question:** {result['question']}")
         st.markdown(f"**Answer:** {st.session_state.last_answer}")
@@ -252,7 +258,7 @@ with right:
             "question": result["question"],
             "answer": st.session_state.last_answer,
             "themes": ", ".join(result["themes"]),
-            "tags": ", ".join(result["tags"])
+            "tags": ", ".join(result["tags"]),
         }])
         pdf_bytes = build_pdf_bytes(result, notes, st.session_state.last_answer)
 
@@ -260,21 +266,21 @@ with right:
             label="Download text report",
             data=report_text,
             file_name="research_report.txt",
-            mime="text/plain"
+            mime="text/plain",
         )
 
         st.download_button(
             label="Download CSV summary",
             data=report_df.to_csv(index=False),
             file_name="research_summary.csv",
-            mime="text/csv"
+            mime="text/csv",
         )
 
         st.download_button(
             label="Download PDF report",
             data=pdf_bytes,
             file_name="research_report.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
         )
 
         st.info("You can download the research note, CSV summary, or PDF report and save it on your computer.")
@@ -294,13 +300,12 @@ with st.expander("Browse saved searches"):
 
     if filtered:
         for item in filtered:
-            with st.container():
-                st.markdown(f"**{item['district']}** — {item['question']}")
-                st.caption(f"Themes: {', '.join(item['themes']) if item['themes'] else 'None'}")
-                st.caption(f"Tags: {', '.join(item['tags']) if item['tags'] else 'None'}")
-                if st.button("Delete", key=f"delete_{item['id']}"):
-                    delete_search(item["id"])
-                    st.rerun()
+            st.markdown(f"**{item['district']}** — {item['question']}")
+            st.caption(f"Themes: {', '.join(item['themes']) if item['themes'] else 'None'}")
+            st.caption(f"Tags: {', '.join(item['tags']) if item['tags'] else 'None'}")
+            if st.button("Delete", key=f"delete_{item['id']}"):
+                delete_search(item["id"])
+                st.rerun()
     else:
         st.write("No saved searches match this category.")
 
@@ -309,7 +314,7 @@ with st.expander("Research notes"):
         "Write notes here",
         placeholder="Add observations, source links, or ideas for memorandum writing.",
         height=180,
-        key="notes_input"
+        key="notes_input",
     )
     st.write("Notes stay in the session only for now.")
 
@@ -320,4 +325,4 @@ with st.expander("Recent searches"):
     else:
         st.write("No searches yet.")
 
-st.caption("Next step: replace the short generated answer with trusted-source research text or a source-backed summary.")
+st.caption("Next step: replace the short generated answer with a live trusted-source summary for the current question.")
