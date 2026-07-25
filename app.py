@@ -42,14 +42,31 @@ if "search_history" not in st.session_state:
     st.session_state.search_history = []
 if "last_search" not in st.session_state:
     st.session_state.last_search = None
+if "last_answer" not in st.session_state:
+    st.session_state.last_answer = ""
 if "search_error" not in st.session_state:
     st.session_state.search_error = None
 if "notes_input" not in st.session_state:
     st.session_state.notes_input = ""
 
+def generate_answer(result):
+    themes = result["themes"] or []
+    tags = result["tags"] or []
+
+    topic_line = ", ".join(themes[:3]) if themes else "the selected research themes"
+    tag_line = ", ".join(tags[:3]) if tags else "the selected issue tags"
+
+    return (
+        f"The question is focused on {result['district']} and relates to {topic_line}. "
+        f"Based on the selected tags, the main lens is {tag_line}. "
+        f"This research should gather trusted sources, local reports, and relevant documents "
+        f"before drawing conclusions."
+    )
+
 def run_search():
     if not st.session_state.question_input.strip():
         st.session_state.last_search = None
+        st.session_state.last_answer = ""
         st.session_state.search_error = "Please enter a research question first."
         return
 
@@ -61,6 +78,7 @@ def run_search():
         "tags": st.session_state.tags_input
     }
     st.session_state.last_search = result
+    st.session_state.last_answer = generate_answer(result)
     st.session_state.search_history.insert(0, result)
     st.session_state.search_history = st.session_state.search_history[:50]
 
@@ -69,14 +87,18 @@ def delete_search(idx):
         item = st.session_state.search_history.pop(idx)
         if st.session_state.last_search == item:
             st.session_state.last_search = st.session_state.search_history[0] if st.session_state.search_history else None
+            st.session_state.last_answer = generate_answer(st.session_state.last_search) if st.session_state.last_search else ""
 
-def build_report_text(result, notes):
+def build_report_text(result, notes, answer):
     themes = result["themes"] if result["themes"] else []
     tags = result["tags"] if result["tags"] else []
     return f"""North Bengal Research Report
 
 District: {result['district']}
 Question: {result['question']}
+
+Answer:
+{answer if answer else 'No answer generated yet.'}
 
 Themes:
 {chr(10).join(f"- {item}" for item in themes) if themes else "- None selected"}
@@ -88,7 +110,7 @@ Research notes:
 {notes.strip() if notes.strip() else '- No notes added yet.'}
 """
 
-def build_pdf_bytes(result, notes):
+def build_pdf_bytes(result, notes, answer):
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -129,6 +151,9 @@ def build_pdf_bytes(result, notes):
     y -= 4 * mm
     y = write_line(f"District: {result['district']}", y)
     y = write_line(f"Question: {result['question']}", y)
+    y -= 3 * mm
+    y = write_line("Answer:", y, bold=True, size=12)
+    y = write_line(answer if answer else "No answer generated yet.", y)
     y -= 3 * mm
     y = write_line("Themes:", y, bold=True, size=12)
     if result["themes"]:
@@ -215,18 +240,20 @@ with right:
 
         st.markdown(f"**District:** {result['district']}")
         st.markdown(f"**Question:** {result['question']}")
+        st.markdown(f"**Answer:** {st.session_state.last_answer}")
         st.markdown(f"**Themes:** {', '.join(result['themes']) if result['themes'] else 'None selected'}")
         st.markdown(f"**Tags:** {', '.join(result['tags']) if result['tags'] else 'None selected'}")
 
         notes = st.session_state.notes_input
-        report_text = build_report_text(result, notes)
+        report_text = build_report_text(result, notes, st.session_state.last_answer)
         report_df = pd.DataFrame([{
             "district": result["district"],
             "question": result["question"],
+            "answer": st.session_state.last_answer,
             "themes": ", ".join(result["themes"]),
             "tags": ", ".join(result["tags"])
         }])
-        pdf_bytes = build_pdf_bytes(result, notes)
+        pdf_bytes = build_pdf_bytes(result, notes, st.session_state.last_answer)
 
         st.download_button(
             label="Download text report",
@@ -260,18 +287,18 @@ with st.expander("Browse saved searches"):
 
     filtered = []
     for item in st.session_state.search_history:
-        match_text = " ".join(item.get("themes", []) + item.get("tags", [])).lower()
-        if browse_category == "All" or browse_category.lower() in match_text:
+        item_text = " ".join(item.get("themes", []) + item.get("tags", [])).lower()
+        if browse_category == "All" or browse_category.lower() in item_text:
             filtered.append(item)
 
     if filtered:
         for idx, item in enumerate(filtered):
+            real_index = st.session_state.search_history.index(item)
             with st.container():
                 st.markdown(f"**{item['district']}** — {item['question']}")
                 st.caption(f"Themes: {', '.join(item['themes']) if item['themes'] else 'None'}")
                 st.caption(f"Tags: {', '.join(item['tags']) if item['tags'] else 'None'}")
-                if st.button("Delete", key=f"delete_{idx}_{item['question']}"):
-                    real_index = st.session_state.search_history.index(item)
+                if st.button("Delete", key=f"delete_{real_index}_{hash(item['question'])}"):
                     delete_search(real_index)
                     st.rerun()
     else:
@@ -293,4 +320,4 @@ with st.expander("Recent searches"):
     else:
         st.write("No searches yet.")
 
-st.caption("Next step: connect categories, search filters, and delete controls into a cleaner research browser.")
+st.caption("Next step: replace the short generated answer with trusted-source research text or a source-backed summary.")
