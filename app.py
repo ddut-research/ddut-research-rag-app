@@ -74,6 +74,7 @@ with left:
             "Land Issues",
             "Agitations and Movements",
             "Political and Social Problems"
+            "Political and Current Events",
         ],
         default=[
             "Unemployment and Livelihood",
