@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+from uuid import uuid4
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
@@ -52,10 +53,8 @@ if "notes_input" not in st.session_state:
 def generate_answer(result):
     themes = result["themes"] or []
     tags = result["tags"] or []
-
     topic_line = ", ".join(themes[:3]) if themes else "the selected research themes"
     tag_line = ", ".join(tags[:3]) if tags else "the selected issue tags"
-
     return (
         f"The question is focused on {result['district']} and relates to {topic_line}. "
         f"Based on the selected tags, the main lens is {tag_line}. "
@@ -72,6 +71,7 @@ def run_search():
 
     st.session_state.search_error = None
     result = {
+        "id": str(uuid4()),
         "district": st.session_state.district_input,
         "question": st.session_state.question_input.strip(),
         "themes": st.session_state.themes_input,
@@ -82,12 +82,14 @@ def run_search():
     st.session_state.search_history.insert(0, result)
     st.session_state.search_history = st.session_state.search_history[:50]
 
-def delete_search(idx):
-    if 0 <= idx < len(st.session_state.search_history):
-        item = st.session_state.search_history.pop(idx)
-        if st.session_state.last_search == item:
-            st.session_state.last_search = st.session_state.search_history[0] if st.session_state.search_history else None
-            st.session_state.last_answer = generate_answer(st.session_state.last_search) if st.session_state.last_search else ""
+def delete_search(search_id):
+    st.session_state.search_history = [
+        item for item in st.session_state.search_history
+        if item["id"] != search_id
+    ]
+    if st.session_state.last_search and st.session_state.last_search["id"] == search_id:
+        st.session_state.last_search = st.session_state.search_history[0] if st.session_state.search_history else None
+        st.session_state.last_answer = generate_answer(st.session_state.last_search) if st.session_state.last_search else ""
 
 def build_report_text(result, notes, answer):
     themes = result["themes"] if result["themes"] else []
@@ -237,7 +239,6 @@ with right:
     if st.session_state.last_search:
         result = st.session_state.last_search
         st.success("Latest search ready.")
-
         st.markdown(f"**District:** {result['district']}")
         st.markdown(f"**Question:** {result['question']}")
         st.markdown(f"**Answer:** {st.session_state.last_answer}")
@@ -292,14 +293,13 @@ with st.expander("Browse saved searches"):
             filtered.append(item)
 
     if filtered:
-        for idx, item in enumerate(filtered):
-            real_index = st.session_state.search_history.index(item)
+        for item in filtered:
             with st.container():
                 st.markdown(f"**{item['district']}** — {item['question']}")
                 st.caption(f"Themes: {', '.join(item['themes']) if item['themes'] else 'None'}")
                 st.caption(f"Tags: {', '.join(item['tags']) if item['tags'] else 'None'}")
-                if st.button("Delete", key=f"delete_{real_index}_{hash(item['question'])}"):
-                    delete_search(real_index)
+                if st.button("Delete", key=f"delete_{item['id']}"):
+                    delete_search(item["id"])
                     st.rerun()
     else:
         st.write("No saved searches match this category.")
