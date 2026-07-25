@@ -14,6 +14,30 @@ st.set_page_config(
 st.title("North Bengal Research App")
 st.write("A research workspace for common citizen issues in Darjeeling, Kalimpong, Jalpaiguri, and Alipurduar.")
 
+CATEGORIES = [
+    "All",
+    "Unemployment and Livelihood",
+    "Land Rights and Pattas",
+    "Tea Garden Workers",
+    "Generational Tea Garden Residents",
+    "Forest Village Residents",
+    "Migration and Trafficking",
+    "Water, Health, and Basic Services",
+    "Identity, Documents, and Fraud",
+    "Borders, Security, and Infiltration",
+    "Property and Land Disputes",
+    "Social and Civic Problems",
+    "History",
+    "Culture",
+    "Language",
+    "Demographics",
+    "Socio-economics",
+    "Land Issues",
+    "Agitations and Movements",
+    "Political and Social Problems",
+    "Political and Current Events"
+]
+
 if "search_history" not in st.session_state:
     st.session_state.search_history = []
 if "last_search" not in st.session_state:
@@ -38,12 +62,17 @@ def run_search():
     }
     st.session_state.last_search = result
     st.session_state.search_history.insert(0, result)
-    st.session_state.search_history = st.session_state.search_history[:5]
+    st.session_state.search_history = st.session_state.search_history[:50]
+
+def delete_search(idx):
+    if 0 <= idx < len(st.session_state.search_history):
+        item = st.session_state.search_history.pop(idx)
+        if st.session_state.last_search == item:
+            st.session_state.last_search = st.session_state.search_history[0] if st.session_state.search_history else None
 
 def build_report_text(result, notes):
     themes = result["themes"] if result["themes"] else []
     tags = result["tags"] if result["tags"] else []
-
     return f"""North Bengal Research Report
 
 District: {result['district']}
@@ -63,7 +92,6 @@ def build_pdf_bytes(result, notes):
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-
     x = 20 * mm
     y = height - 20 * mm
     line_height = 7 * mm
@@ -102,14 +130,12 @@ def build_pdf_bytes(result, notes):
     y = write_line(f"District: {result['district']}", y)
     y = write_line(f"Question: {result['question']}", y)
     y -= 3 * mm
-
     y = write_line("Themes:", y, bold=True, size=12)
     if result["themes"]:
         for item in result["themes"]:
             y = write_line(f"- {item}", y)
     else:
         y = write_line("- None selected", y)
-
     y -= 3 * mm
     y = write_line("Tags:", y, bold=True, size=12)
     if result["tags"]:
@@ -117,13 +143,11 @@ def build_pdf_bytes(result, notes):
             y = write_line(f"- {item}", y)
     else:
         y = write_line("- None selected", y)
-
     y -= 3 * mm
     y = write_line("Research Notes:", y, bold=True, size=12)
     notes_text = notes.strip() if notes.strip() else "No notes added yet."
     for paragraph in notes_text.split("\n"):
         y = write_line(paragraph if paragraph.strip() else " ", y)
-
     pdf.save()
     buffer.seek(0)
     return buffer.getvalue()
@@ -148,27 +172,7 @@ with left:
 
     st.multiselect(
         "Choose research themes",
-        [
-            "Unemployment and Livelihood",
-            "Land Rights and Pattas",
-            "Tea Garden Workers",
-            "Generational Tea Garden Residents",
-            "Forest Village Residents",
-            "Migration and Trafficking",
-            "Water, Health, and Basic Services",
-            "Identity, Documents, and Fraud",
-            "Borders, Security, and Infiltration",
-            "Property and Land Disputes",
-            "Social and Civic Problems",
-            "History",
-            "Culture",
-            "Language",
-            "Demographics",
-            "Socio-economics",
-            "Land Issues",
-            "Agitations and Movements",
-            "Political and Social Problems"
-        ],
+        CATEGORIES[1:-1],
         default=[
             "Unemployment and Livelihood",
             "Land Rights and Pattas",
@@ -211,12 +215,8 @@ with right:
 
         st.markdown(f"**District:** {result['district']}")
         st.markdown(f"**Question:** {result['question']}")
-        st.markdown(
-            f"**Themes:** {', '.join(result['themes']) if result['themes'] else 'None selected'}"
-        )
-        st.markdown(
-            f"**Tags:** {', '.join(result['tags']) if result['tags'] else 'None selected'}"
-        )
+        st.markdown(f"**Themes:** {', '.join(result['themes']) if result['themes'] else 'None selected'}")
+        st.markdown(f"**Tags:** {', '.join(result['tags']) if result['tags'] else 'None selected'}")
 
         notes = st.session_state.notes_input
         report_text = build_report_text(result, notes)
@@ -255,6 +255,28 @@ with right:
 
 st.divider()
 
+with st.expander("Browse saved searches"):
+    browse_category = st.selectbox("Filter by category", CATEGORIES, index=0)
+
+    filtered = []
+    for item in st.session_state.search_history:
+        match_text = " ".join(item.get("themes", []) + item.get("tags", [])).lower()
+        if browse_category == "All" or browse_category.lower() in match_text:
+            filtered.append(item)
+
+    if filtered:
+        for idx, item in enumerate(filtered):
+            with st.container():
+                st.markdown(f"**{item['district']}** — {item['question']}")
+                st.caption(f"Themes: {', '.join(item['themes']) if item['themes'] else 'None'}")
+                st.caption(f"Tags: {', '.join(item['tags']) if item['tags'] else 'None'}")
+                if st.button("Delete", key=f"delete_{idx}_{item['question']}"):
+                    real_index = st.session_state.search_history.index(item)
+                    delete_search(real_index)
+                    st.rerun()
+    else:
+        st.write("No saved searches match this category.")
+
 with st.expander("Research notes"):
     st.text_area(
         "Write notes here",
@@ -264,17 +286,6 @@ with st.expander("Research notes"):
     )
     st.write("Notes stay in the session only for now.")
 
-with st.expander("Source list preview"):
-    st.markdown(
-        """
-        - Government reports
-        - News reports
-        - Academic papers
-        - District-level documents
-        - Community and field reports
-        """
-    )
-
 with st.expander("Recent searches"):
     if st.session_state.search_history:
         for i, item in enumerate(st.session_state.search_history, start=1):
@@ -282,4 +293,4 @@ with st.expander("Recent searches"):
     else:
         st.write("No searches yet.")
 
-st.caption("Next step: connect the search button to real summaries, source links, and exportable research notes.")
+st.caption("Next step: connect categories, search filters, and delete controls into a cleaner research browser.")
