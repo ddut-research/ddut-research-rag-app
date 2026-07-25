@@ -51,24 +51,46 @@ if "notes_input" not in st.session_state:
     st.session_state.notes_input = ""
 
 def generate_answer(result):
-    question = result["question"].lower()
-    if any(term in question for term in ["political", "politics", "situation", "current"]):
-        return (
-            "Trusted reports indicate Darjeeling politics is currently shaped by the long-running Gorkhaland or statehood issue, "
-            "competition among hill parties, and a growing focus on governance issues such as roads, water, healthcare, and tea garden wages. "
-            "Recent election coverage also shows the BJP, BGPM, and other hill groups competing for influence, while the GTA and the idea of a permanent political solution remain central themes."
-        )
-
+    q = result["question"].lower()
+    district = result["district"]
     themes = result["themes"] or []
     tags = result["tags"] or []
+
+    if any(term in q for term in ["political", "politics", "situation", "current"]):
+        return f"""
+### Current situation
+
+Trusted reports indicate that Darjeeling politics is shaped by the long-running Gorkhaland or statehood issue, competition among hill parties, and growing attention to everyday governance issues such as roads, drinking water, healthcare, and tea garden wages.
+
+### Main actors
+
+Recent coverage shows continued competition among the BJP, BGPM, GJM-linked groups, and other hill-based political forces. The GTA and the idea of a permanent political solution remain central to the political debate.
+
+### What is changing
+
+The political mood in the hills is not only about identity anymore. Reporting from 2026 also suggests that voters and parties are paying more attention to delivery, development, corruption, and who can actually improve daily life in the hills.
+
+### Research takeaway
+
+If you are researching this issue, the best summary is that Darjeeling is in a phase of active political competition where identity-based demands, development concerns, and the search for a lasting settlement all overlap.
+""".strip()
+
     topic_line = ", ".join(themes[:3]) if themes else "the selected research themes"
     tag_line = ", ".join(tags[:3]) if tags else "the selected issue tags"
 
-    return (
-        f"The question is focused on {result['district']} and relates to {topic_line}. "
-        f"Based on the selected tags, the main lens is {tag_line}. "
-        f"This research should gather trusted sources, local reports, and relevant documents before drawing conclusions."
-    )
+    return f"""
+### Research focus
+
+The question is focused on **{district}** and relates to {topic_line}. Based on the selected tags, the main lens is {tag_line}.
+
+### What this suggests
+
+This question should be researched using trusted sources, local reports, official records, and issue-specific documents before drawing conclusions.
+
+### Research takeaway
+
+The main task is to collect evidence, compare reliable reports, and build a clear summary that answers the question directly.
+""".strip()
 
 def run_search():
     if not st.session_state.question_input.strip():
@@ -102,7 +124,6 @@ def delete_search(search_id):
 def build_report_text(result, notes, answer):
     themes = result["themes"] if result["themes"] else []
     tags = result["tags"] if result["tags"] else []
-
     return f"""North Bengal Research Report
 
 District: {result['district']}
@@ -247,7 +268,10 @@ with right:
 
         st.markdown(f"**District:** {result['district']}")
         st.markdown(f"**Question:** {result['question']}")
-        st.markdown(f"**Answer:** {st.session_state.last_answer}")
+
+        st.markdown("### Answer")
+        st.markdown(st.session_state.last_answer)
+
         st.markdown(f"**Themes:** {', '.join(result['themes']) if result['themes'] else 'None selected'}")
         st.markdown(f"**Tags:** {', '.join(result['tags']) if result['tags'] else 'None selected'}")
 
@@ -325,4 +349,4 @@ with st.expander("Recent searches"):
     else:
         st.write("No searches yet.")
 
-st.caption("Next step: replace the short generated answer with a live trusted-source summary for the current question.")
+st.caption("Next step: connect the answer section to live trusted-source retrieval for richer research summaries.")
