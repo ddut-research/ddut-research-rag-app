@@ -18,55 +18,16 @@ if "current_error" not in st.session_state:
 st.title("Research Engine")
 st.write("Source-first research for citizens and memorandum-ready drafting.")
 
-district = st.selectbox(
-    "District",
-    ["Darjeeling", "Kalimpong", "Jalpaiguri", "Alipurduar", "All districts"]
-)
 
-question = st.text_area(
-    "Question",
-    placeholder="Ask a research question here."
-)
-
-themes = st.multiselect(
-    "Themes",
-    [
-        "Unemployment and Livelihood",
-        "Land Rights and Pattas",
-        "Tea Garden Workers",
-        "Forest Village Residents",
-        "Water, Health, and Basic Services",
-        "Political and Social Problems",
-        "Political and Current Events",
-    ],
-    default=["Political and Social Problems"]
-)
-
-tags = st.multiselect(
-    "Tags",
-    [
-        "Political and Current Events",
-        "Public services",
-        "Housing",
-        "Wages",
-        "Border pressure",
-        "Document forgery",
-    ],
-    default=["Political and Current Events"]
-)
-
-def run_research():
+def run_research(district, question, themes, tags):
     if not question.strip():
-        st.session_state.current_error = "Please enter a question."
-        st.session_state.current_result = None
-        return
+        return None, "Please enter a question."
 
-    st.session_state.current_error = ""
     sources = retrieve_sources(
         district=district,
         question=question.strip(),
         themes=themes,
-        tags=tags
+        tags=tags,
     )
 
     citizen = build_citizen_summary(question.strip(), district, sources)
@@ -82,11 +43,60 @@ def run_research():
         "citizen_summary": citizen,
         "memo_brief": memo,
     }
-    st.session_state.current_result = result
-    st.session_state.history.insert(0, result)
-    st.session_state.history = st.session_state.history[:50]
+    return result, ""
 
-st.button("Research", on_click=run_research)
+
+with st.form(key="research_form"):
+    district = st.selectbox(
+        "District",
+        ["Darjeeling", "Kalimpong", "Jalpaiguri", "Alipurduar", "All districts"],
+    )
+
+    question = st.text_area(
+        "Question",
+        placeholder="Ask a research question here.",
+    )
+
+    themes = st.multiselect(
+        "Themes",
+        [
+            "Unemployment and Livelihood",
+            "Land Rights and Pattas",
+            "Tea Garden Workers",
+            "Forest Village Residents",
+            "Water, Health, and Basic Services",
+            "Political and Social Problems",
+            "Political and Current Events",
+        ],
+        default=["Political and Social Problems"],
+    )
+
+    tags = st.multiselect(
+        "Tags",
+        [
+            "Political and Current Events",
+            "Public services",
+            "Housing",
+            "Wages",
+            "Border pressure",
+            "Document forgery",
+        ],
+        default=["Political and Current Events"],
+    )
+
+    submitted = st.form_submit_button("Research")
+
+if submitted:
+    result, error = run_research(district, question, themes, tags)
+
+    if error:
+        st.session_state.current_error = error
+        st.session_state.current_result = None
+    else:
+        st.session_state.current_error = ""
+        st.session_state.current_result = result
+        st.session_state.history.insert(0, result)
+        st.session_state.history = st.session_state.history[:50]
 
 if st.session_state.current_error:
     st.error(st.session_state.current_error)
@@ -107,13 +117,16 @@ if st.session_state.current_result:
     st.subheader("Sources")
     source_rows = []
     for s in result["sources"]:
-        source_rows.append({
-            "title": s.get("title", ""),
-            "source_type": s.get("source_type", ""),
-            "url": s.get("url", ""),
-            "published": s.get("published", ""),
-            "relevance": s.get("relevance", 0),
-        })
+        source_rows.append(
+            {
+                "title": s.get("title", ""),
+                "source_type": s.get("source_type", ""),
+                "url": s.get("url", ""),
+                "published": s.get("published", ""),
+                "relevance": s.get("relevance", 0),
+            }
+        )
+
     df = pd.DataFrame(source_rows)
     st.dataframe(df, use_container_width=True)
 
@@ -121,28 +134,28 @@ if st.session_state.current_result:
         "Download citizen summary",
         data=to_txt(result["citizen_summary"]),
         file_name="citizen_summary.txt",
-        mime="text/plain"
+        mime="text/plain",
     )
 
     st.download_button(
         "Download memorandum brief",
         data=to_txt(result["memo_brief"]),
         file_name="memo_brief.txt",
-        mime="text/plain"
+        mime="text/plain",
     )
 
     st.download_button(
         "Download source table CSV",
         data=to_csv(df),
         file_name="sources.csv",
-        mime="text/csv"
+        mime="text/csv",
     )
 
     st.download_button(
         "Download PDF report",
         data=to_pdf(result),
         file_name="research_report.pdf",
-        mime="application/pdf"
+        mime="application/pdf",
     )
 
 with st.expander("History"):
