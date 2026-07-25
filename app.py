@@ -7,78 +7,109 @@ st.set_page_config(
 )
 
 st.title("North Bengal Research App")
-st.write("A simple research app for common citizen issues in Darjeeling, Kalimpong, Jalpaiguri, and Alipurduar.")
+st.write("A research workspace for common citizen issues in Darjeeling, Kalimpong, Jalpaiguri, and Alipurduar.")
 
-st.subheader("Research setup")
+left, right = st.columns([1.2, 1])
 
-district = st.selectbox(
-    "Choose a district",
-    ["Darjeeling", "Kalimpong", "Jalpaiguri", "Alipurduar", "All districts"]
-)
+with left:
+    st.subheader("Research setup")
 
-question = st.text_input(
-    "Enter your research question",
-    placeholder="Example: What are the main civic and social problems affecting common people?"
-)
+    district = st.selectbox(
+        "Choose a district",
+        ["Darjeeling", "Kalimpong", "Jalpaiguri", "Alipurduar", "All districts"]
+    )
 
-focus_areas = st.multiselect(
-    "Choose research themes",
-    [
-        "Unemployment and Livelihood",
-        "Land Rights and Pattas",
-        "Tea Garden Workers",
-        "Generational Tea Garden Residents",
-        "Forest Village Residents",
-        "Migration and Trafficking",
-        "Water, Health, and Basic Services",
-        "Identity, Documents, and Fraud",
-        "Borders, Security, and Infiltration",
-        "Property and Land Disputes",
-        "Social and Civic Problems",
-        "History",
-        "Culture",
-        "Language",
-        "Demographics",
-        "Socio-economics",
-        "Land Issues",
-        "Agitations and Movements",
-        "Political and Social Problems"
-    ],
-    default=[
-        "Unemployment and Livelihood",
-        "Land Rights and Pattas",
-        "Tea Garden Workers",
-        "Forest Village Residents",
-        "Water, Health, and Basic Services"
-    ]
-)
+    question = st.text_area(
+        "Enter your research question",
+        placeholder="Example: How are common citizens affected by unemployment, land rights issues, water shortage, and document fraud?",
+        height=140
+    )
 
-st.subheader("Optional detail tags")
-detail_tags = st.multiselect(
-    "Add specific issue tags",
-    [
-        "Human trafficking",
-        "Land mafia",
-        "Document forgery",
-        "ID forgery",
-        "Drinking water",
-        "Housing",
-        "Employment loss",
-        "Wages",
-        "Public services",
-        "Border pressure"
-    ]
-)
+    focus_areas = st.multiselect(
+        "Choose research themes",
+        [
+            "Unemployment and Livelihood",
+            "Land Rights and Pattas",
+            "Tea Garden Workers",
+            "Generational Tea Garden Residents",
+            "Forest Village Residents",
+            "Migration and Trafficking",
+            "Water, Health, and Basic Services",
+            "Identity, Documents, and Fraud",
+            "Borders, Security, and Infiltration",
+            "Property and Land Disputes",
+            "Social and Civic Problems",
+            "History",
+            "Culture",
+            "Language",
+            "Demographics",
+            "Socio-economics",
+            "Land Issues",
+            "Agitations and Movements",
+            "Political and Social Problems"
+        ],
+        default=[
+            "Unemployment and Livelihood",
+            "Land Rights and Pattas",
+            "Tea Garden Workers",
+            "Forest Village Residents",
+            "Water, Health, and Basic Services"
+        ]
+    )
 
-if st.button("Search"):
-    if not question.strip():
-        st.warning("Please enter a research question first.")
+    detail_tags = st.multiselect(
+        "Add specific issue tags",
+        [
+            "Human trafficking",
+            "Land mafia",
+            "Document forgery",
+            "ID forgery",
+            "Drinking water",
+            "Housing",
+            "Employment loss",
+            "Wages",
+            "Public services",
+            "Border pressure"
+        ]
+    )
+
+    search_clicked = st.button("Search")
+
+with right:
+    st.subheader("Research preview")
+
+    if search_clicked:
+        if not question.strip():
+            st.warning("Please enter a research question first.")
+        else:
+            st.success("Search started.")
+            st.markdown(f"**District:** {district}")
+            st.markdown(f"**Question:** {question}")
+            st.markdown(f"**Themes:** {', '.join(focus_areas) if focus_areas else 'None selected'}")
+            st.markdown(f"**Tags:** {', '.join(detail_tags) if detail_tags else 'None selected'}")
+            st.info("This area will later show summaries, sources, and research findings.")
     else:
-        st.success("Search started.")
-        st.write("District:", district)
-        st.write("Question:", question)
-        st.write("Research themes:", ", ".join(focus_areas) if focus_areas else "None selected")
-        st.write("Detail tags:", ", ".join(detail_tags) if detail_tags else "None selected")
+        st.info("Enter a question and click Search to see the preview here.")
 
 st.divider()
-st.caption("This is the first research UI version. Next we can connect search results, sources, and summaries.")
+
+with st.expander("Research notes"):
+    notes = st.text_area(
+        "Write notes here",
+        placeholder="Add observations, source links, or ideas for memorandum writing.",
+        height=180
+    )
+    st.write("Notes saved in the app session will be added later.")
+
+with st.expander("Source list preview"):
+    st.markdown(
+        """
+        - Government reports
+        - News reports
+        - Academic papers
+        - District-level documents
+        - Community and field reports
+        """
+    )
+
+st.caption("First layout version of the research app. Next we can add source links and structured summaries.")
