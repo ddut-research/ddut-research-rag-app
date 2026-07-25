@@ -1,5 +1,9 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
 
 st.set_page_config(
     page_title="North Bengal Research App",
@@ -16,6 +20,8 @@ if "last_search" not in st.session_state:
     st.session_state.last_search = None
 if "search_error" not in st.session_state:
     st.session_state.search_error = None
+if "notes_input" not in st.session_state:
+    st.session_state.notes_input = ""
 
 def run_search():
     if not st.session_state.question_input.strip():
@@ -33,6 +39,94 @@ def run_search():
     st.session_state.last_search = result
     st.session_state.search_history.insert(0, result)
     st.session_state.search_history = st.session_state.search_history[:5]
+
+def build_report_text(result, notes):
+    themes = result["themes"] if result["themes"] else []
+    tags = result["tags"] if result["tags"] else []
+
+    return f"""North Bengal Research Report
+
+District: {result['district']}
+Question: {result['question']}
+
+Themes:
+{chr(10).join(f"- {item}" for item in themes) if themes else "- None selected"}
+
+Tags:
+{chr(10).join(f"- {item}" for item in tags) if tags else "- None selected"}
+
+Research notes:
+{notes.strip() if notes.strip() else '- No notes added yet.'}
+"""
+
+def build_pdf_bytes(result, notes):
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    x = 20 * mm
+    y = height - 20 * mm
+    line_height = 7 * mm
+    max_chars = 95
+
+    def wrap_text(text, limit=max_chars):
+        words = text.split()
+        if not words:
+            return [""]
+        lines = []
+        current = words[0]
+        for word in words[1:]:
+            test = f"{current} {word}"
+            if len(test) <= limit:
+                current = test
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+        return lines
+
+    def write_line(text, y_pos, bold=False, size=11):
+        pdf.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+        for line in wrap_text(text):
+            if y_pos < 20 * mm:
+                pdf.showPage()
+                y_pos = height - 20 * mm
+                pdf.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+            pdf.drawString(x, y_pos, line)
+            y_pos -= line_height
+        return y_pos
+
+    pdf.setTitle("North Bengal Research Report")
+    y = write_line("North Bengal Research Report", y, bold=True, size=16)
+    y -= 4 * mm
+    y = write_line(f"District: {result['district']}", y)
+    y = write_line(f"Question: {result['question']}", y)
+    y -= 3 * mm
+
+    y = write_line("Themes:", y, bold=True, size=12)
+    if result["themes"]:
+        for item in result["themes"]:
+            y = write_line(f"- {item}", y)
+    else:
+        y = write_line("- None selected", y)
+
+    y -= 3 * mm
+    y = write_line("Tags:", y, bold=True, size=12)
+    if result["tags"]:
+        for item in result["tags"]:
+            y = write_line(f"- {item}", y)
+    else:
+        y = write_line("- None selected", y)
+
+    y -= 3 * mm
+    y = write_line("Research Notes:", y, bold=True, size=12)
+    notes_text = notes.strip() if notes.strip() else "No notes added yet."
+    for paragraph in notes_text.split("\n"):
+        y = write_line(paragraph if paragraph.strip() else " ", y)
+
+    pdf.save()
+    buffer.seek(0)
+    return buffer.getvalue()
 
 left, right = st.columns([1.2, 1])
 
@@ -73,8 +167,7 @@ with left:
             "Socio-economics",
             "Land Issues",
             "Agitations and Movements",
-            "Political and Social Problems",
-            "Political and Current Events",
+            "Political and Social Problems"
         ],
         default=[
             "Unemployment and Livelihood",
@@ -98,7 +191,8 @@ with left:
             "Employment loss",
             "Wages",
             "Public services",
-            "Border pressure"
+            "Border pressure",
+            "Political and Current Events"
         ],
         key="tags_input"
     )
@@ -124,27 +218,15 @@ with right:
             f"**Tags:** {', '.join(result['tags']) if result['tags'] else 'None selected'}"
         )
 
-        report_text = f"""North Bengal Research Report
-
-District: {result['district']}
-Question: {result['question']}
-
-Themes:
-{chr(10).join(f"- {item}" for item in result['themes']) if result['themes'] else "- None selected"}
-
-Tags:
-{chr(10).join(f"- {item}" for item in result['tags']) if result['tags'] else "- None selected"}
-
-Research notes:
-- Add your findings here after reviewing sources.
-"""
-
+        notes = st.session_state.notes_input
+        report_text = build_report_text(result, notes)
         report_df = pd.DataFrame([{
             "district": result["district"],
             "question": result["question"],
             "themes": ", ".join(result["themes"]),
             "tags": ", ".join(result["tags"])
         }])
+        pdf_bytes = build_pdf_bytes(result, notes)
 
         st.download_button(
             label="Download text report",
@@ -160,7 +242,14 @@ Research notes:
             mime="text/csv"
         )
 
-        st.info("You can download the research note or CSV summary and save it on your computer.")
+        st.download_button(
+            label="Download PDF report",
+            data=pdf_bytes,
+            file_name="research_report.pdf",
+            mime="application/pdf"
+        )
+
+        st.info("You can download the research note, CSV summary, or PDF report and save it on your computer.")
     else:
         st.info("Enter a question and click Search to see the preview here.")
 
